@@ -8,13 +8,20 @@ import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
+import static ru.kkuzmichev.simpleappforespresso.DisplayMatcher.elementVisibilityPosition;
 
+import org.hamcrest.Description;
+import org.hamcrest.Matcher;
+import android.view.View;
+import androidx.recyclerview.widget.RecyclerView;
+import androidx.test.espresso.ViewInteraction;
 import androidx.test.espresso.contrib.DrawerActions;
 import androidx.test.espresso.intent.Intents;
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.espresso.IdlingRegistry;
 import org.junit.After;
 import org.junit.Before;
+import androidx.test.espresso.matcher.BoundedMatcher;
 import androidx.test.ext.junit.rules.ActivityScenarioRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -42,7 +49,8 @@ public class SimpleTests {
         Intents.init();
         try {
             openActionBarOverflowOrOptionsMenu(ApplicationProvider.getApplicationContext());
-        } catch (Exception e) {}
+        } catch (Exception e) {
+        }
         onView(anyOf(withText(R.string.action_settings), withId(R.id.action_settings))).perform(click());
         Intents.intended(hasData("https://google.com"));
     }
@@ -61,5 +69,34 @@ public class SimpleTests {
     public void galleryCheck() {
         onView(withId(R.id.drawer_layout)).perform(DrawerActions.open());
         onView(withId(R.id.nav_gallery)).perform(click());
+    }
+
+    @Test
+    public void checkElementFromList() {
+        onView(withId(R.id.drawer_layout)).perform(DrawerActions.open());
+        onView(withId(R.id.nav_gallery)).perform(click());
+        ViewInteraction recyclerView = onView(withId(R.id.recycle_view));
+        recyclerView.check(matches(elementVisibilityPosition(0)));
+    }
+}
+
+class DisplayMatcher {
+
+    public static Matcher<View> elementVisibilityPosition(final int position) {
+        return new BoundedMatcher<View, RecyclerView>(RecyclerView.class) {
+            @Override
+            public void describeTo(Description description) {
+                description.appendText("position of visible element" + position + ": ");
+            }
+
+            @Override
+            protected boolean matchesSafely(final RecyclerView view) {
+                RecyclerView.ViewHolder viewHolder = view.findViewHolderForAdapterPosition(position);
+                if (viewHolder == null) {
+                    return false;
+                }
+                return viewHolder.itemView.getVisibility() == View.VISIBLE;
+            }
+        };
     }
 }
