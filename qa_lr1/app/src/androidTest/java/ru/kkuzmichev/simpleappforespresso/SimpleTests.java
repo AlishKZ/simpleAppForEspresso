@@ -9,7 +9,11 @@ import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static ru.kkuzmichev.simpleappforespresso.DisplayMatcher.elementVisibilityPosition;
-
+import static androidx.test.platform.app.InstrumentationRegistry.getInstrumentation;
+import androidx.test.rule.GrantPermissionRule;
+import android.os.Environment;
+import android.Manifest;
+import androidx.test.uiautomator.UiDevice;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import android.view.View;
@@ -22,30 +26,74 @@ import androidx.test.espresso.IdlingRegistry;
 import org.junit.After;
 import org.junit.Before;
 import androidx.test.espresso.matcher.BoundedMatcher;
-import androidx.test.ext.junit.rules.ActivityScenarioRule;
+import androidx.test.rule.ActivityTestRule;
+import io.qameta.allure.android.runners.AllureAndroidJUnit4;
+import io.qameta.allure.kotlin.Allure;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import org.junit.rules.TestWatcher;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
-
+@RunWith(AllureAndroidJUnit4.class)
 public class SimpleTests {
 
     @Rule
-    public ActivityScenarioRule<MainActivity> ActivityTestRule = new ActivityScenarioRule<>(MainActivity.class);
+    public androidx.test.rule.ActivityTestRule<MainActivity> ActivityTestRule = new ActivityTestRule<>(MainActivity.class);
+
+    @Rule
+    public TestWatcher watcher = new TestWatcher() {
+        @Override
+        protected void failed(Throwable e, org.junit.runner.Description description) {
+            String className = description.getClassName();
+            className = className.substring(className.lastIndexOf('.') + 1);
+            String methodName = description.getMethodName();
+            takeScreenshot(className + "#" + methodName);
+        }
+    };
+
+    @Rule
+    public GrantPermissionRule mRuntimePermissionRule = GrantPermissionRule
+            .grant(
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                    Manifest.permission.READ_EXTERNAL_STORAGE
+            );
+
+    private void takeScreenshot(String name) {
+        File path = new File(Environment.getExternalStorageDirectory()
+                .getAbsolutePath() + "/screenshots/");
+        if (!path.exists()) {
+            path.mkdirs();
+        }
+        UiDevice device = UiDevice.getInstance(getInstrumentation());
+        String filename = name + ".png";
+        device.takeScreenshot(new File(path, filename));
+        try {
+            Allure.attachment(filename, new FileInputStream(new File(path, filename)));
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+    }
 
     @Test
     public void positiveCheck() {
+        Allure.feature("проверка позитивного теста");
         onView(withId(R.id.text_home))
                 .check(matches(withText("This is home fragment")));
     }
 
     @Test
     public void negativeCheck() {
+        Allure.feature("проверка негативного теста");
         onView(withId(R.id.text_home))
                 .check(matches(withText("Error")));
     }
 
     @Test
     public void intentCheck() {
+        Allure.feature("проверка исполнения намерения/механизма");
         Intents.init();
         try {
             openActionBarOverflowOrOptionsMenu(ApplicationProvider.getApplicationContext());
@@ -67,12 +115,14 @@ public class SimpleTests {
 
     @Test
     public void galleryCheck() {
+        Allure.feature("проверка галереи");
         onView(withId(R.id.drawer_layout)).perform(DrawerActions.open());
         onView(withId(R.id.nav_gallery)).perform(click());
     }
 
     @Test
     public void checkElementFromList() {
+        Allure.feature("проверка элементов из списка");
         onView(withId(R.id.drawer_layout)).perform(DrawerActions.open());
         onView(withId(R.id.nav_gallery)).perform(click());
         ViewInteraction recyclerView = onView(withId(R.id.recycle_view));
